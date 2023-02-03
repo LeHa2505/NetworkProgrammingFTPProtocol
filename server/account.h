@@ -53,7 +53,7 @@ node_a *findNode(node_a *head, char *username){
 	return NULL;
 }
 
-node_a *loadData(char *filename){ 
+node_a *getListNode(char *filename){ 
   int count =0;
 	FILE *f;
 	char username[MAX], pass[MAX], folder[MAX];
