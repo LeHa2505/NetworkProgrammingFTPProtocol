@@ -33,6 +33,62 @@ void sighandler(int signum)
   printf("\nChild matching this PID is teminated\n");
 }
 
+int respond(int socket, char response[])
+{
+  if ((send(socket, response, strlen(response) + 1, 0)) == -1)
+  {
+    fprintf(stderr, "Can't send packet\n");
+    return errno;
+  }
+  return 0;
+}
+
+void command_sprocess(int socket, char *full_command, char **current_path)
+{
+  // Prepare
+  char *delim = " "; // dấu cách phân định command
+  // strtok: Chia 1 chuỗi dài thành các chuỗi nhỏ được phân biệt riêng rẽ bởi các ký tự đặc biệt được chọn.
+  char *command = strtok(full_command, delim); // lấy phần đầu của command (ls,cd,...)
+  char *context = strtok(NULL, delim);         // phần sau của command
+  char *response = malloc(sizeof(char) * 1024);
+
+  if (strcmp(command, "ls") == 0)
+  {
+    server_ls(response, current_path);
+    respond(socket, response);
+  }
+}
+// int recfd, char *response, char **current_path
+void server_ls(char *response, char **current_path)
+{
+  // *current_path = "test1/folder2";
+  struct dirent *d;
+  DIR *dh = opendir(*current_path);
+  printf("%s\n", *current_path);
+  if (!dh)
+  {
+    if (errno = ENOENT)
+    {
+      // If the directory is not found
+      perror("Directory doesn't exist");
+    }
+    else
+    {
+      // If the directory is not readable then throw error and exit
+      perror("Unable to read directory");
+    }
+    exit(EXIT_FAILURE);
+  }
+  memset(response, '\0', sizeof(response));
+  while ((d = readdir(dh)) != NULL)
+  {
+    strcat(response, d->d_name);
+    strcat(response, "\n");
+  }
+  strcat(response, "\n");
+  // printf("\n");
+}
+
 int main(int argc, const char *argv[])
 {
   if (argc < 2)
@@ -55,6 +111,7 @@ int main(int argc, const char *argv[])
   char client_choice[10];
   int bytes_received, bytes_sent;
   char username[MAX] = {0}, password[MAX] = {0};
+  char command[MAX];
   char *notify;
 
   node_a *account;
@@ -107,7 +164,7 @@ int main(int argc, const char *argv[])
               {
                 while (TRUE)
                 {
-                  
+
                   if ((bytes_received = recv(cfd, client_choice, sizeof(client_choice), 0)) == -1)
                   {
                     perror("\nERROR! Can't receive client's choice ...\n");
@@ -177,16 +234,28 @@ int main(int argc, const char *argv[])
                         break;
                       }
                     }
-                    strcpy(current_path, "~/");
+                    // strcpy(current_path, "~/");
                     // printf("\n%s\n", account->folder);
-                    strcat(current_path, account->folder);
-                    printf("\n%s account is accessing in %s\n", username, current_path);
+                    strcpy(current_path, account->folder);
+                    printf("\n%s account is accessing in ~/%s\n", username, current_path);
 
                     // Sent current_path to client
                     if (send(cfd, current_path, MAX, 0) <= 0)
                     {
                       printf("\nERROR! Can't send current path ...\n");
                       exit(1);
+                    }
+
+                    while (TRUE)
+                    {
+                      if ((bytes_received = recv(cfd, command, MAX, 0)) <= 0)
+                      {
+                        printf("%s Terminated\n", username);
+                        close(cfd);
+                        break;
+                      }
+                      printf("%s commanded: %s\n", username, command);
+                      command_sprocess(cfd, command, &current_path);
                     }
                   }
                   break;

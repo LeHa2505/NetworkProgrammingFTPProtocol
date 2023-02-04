@@ -16,6 +16,45 @@
 
 typedef struct sockaddr_in SOCKADDR_IN;
 
+void command_cprocess(int socket, char *command, char **path)
+{
+  char *full_command = malloc(strlen(command) + 1);
+  strcpy(full_command, command);
+  char *delim = " ";
+  char *first_command = strtok(full_command, delim); // first token
+  char *context = strtok(NULL, delim);               // second token, third token
+
+  if (strcmp(first_command, "ls") == 0)
+  {
+    client_ls(socket, command);
+  }
+}
+
+void client_ls(int socket, char *message)
+{
+  if (send(socket, message, MAX, 0) <= 0)
+  {
+    fprintf(stderr, "can't send packet");
+    perror("");
+    return;
+  }
+  char response[1024];
+  if (recv(socket, response, sizeof(response), 0) == -1)
+  {
+    fprintf(stderr, "can't receive packet");
+    perror("");
+    return;
+  }
+  // if (begin_with(response, "@"))
+  // {
+  //   printf("Server Error: %s\n", &response[1]);
+  // }
+  else
+  {
+    printf("%s", response);
+  }
+}
+
 int main(int argc, const char *argv[])
 {
   if (argc < 3)
@@ -24,8 +63,9 @@ int main(int argc, const char *argv[])
     exit(1);
   }
 
-  char choice[10], username[MAX], password[MAX],
-      notify[10], path[MAX], command[MAX];
+  char choice[10], username[MAX] = {0}, password[MAX] = {0},
+                   notify[10], command[MAX];
+  char *path;
   int bytes_received, bytes_sent;
 
   // Declare socket
@@ -74,9 +114,11 @@ int main(int argc, const char *argv[])
         while (done == 0)
         {
           // memset(choice, '\0', sizeof(choice));
+          // memset(username, '\0',MAX);
+          printf("%s\n", username);
           puts("\nPlease enter your account");
           // Check username
-          printf("Username: "); 
+          printf("Username: ");
           fgets(username, MAX, stdin);
           username[strcspn(username, "\n")] = '\0'; // the last character in this string to \0
           if (send(sfd, username, MAX, 0) <= 0)
@@ -120,7 +162,7 @@ int main(int argc, const char *argv[])
           }
           if (strcmp(notify, "1") == 0)
           {
-            printf("\nWelcome!!!\n");
+            printf("\nWelcome!!!\n-----------------------------\n");
           }
           done = 1;
         }
@@ -131,9 +173,29 @@ int main(int argc, const char *argv[])
           return 0;
         }
         path[bytes_received] = '\0';
-        printf("\n%s$ \n", path);
-        printf("\n DO st: ");
-        fgets(command, MAX, stdin);
+
+        while (TRUE)
+        {
+          // memset(command, '\0', sizeof(command));
+          printf("~/%s$ ", path);
+          // scanf("%s", command);
+          fgets(command, MAX, stdin);
+          // printf("%s\n", command);
+          if (strcmp(command, "\n") == 0)
+          {
+            continue;
+          }
+          if (strcmp(command, "exit\n") == 0)
+          {
+            break;
+          }
+          if ((strlen(command) > 0) && (command[strlen(command) - 1] == '\n'))
+          {
+            command[strlen(command) - 1] = '\0';
+            send(sfd, command, MAX, 0);
+          }
+          command_cprocess(sfd, command, &path);
+        }
       }
       break;
 
