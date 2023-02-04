@@ -15,45 +15,11 @@
 #define FALSE 0
 
 typedef struct sockaddr_in SOCKADDR_IN;
-
-void command_cprocess(int socket, char *command, char **path)
-{
-  char *full_command = malloc(strlen(command) + 1);
-  strcpy(full_command, command);
-  char *delim = " ";
-  char *first_command = strtok(full_command, delim); // first token
-  char *context = strtok(NULL, delim);               // second token, third token
-
-  if (strcmp(first_command, "ls") == 0)
-  {
-    client_ls(socket, command);
-  }
-}
-
-void client_ls(int socket, char *message)
-{
-  if (send(socket, message, MAX, 0) <= 0)
-  {
-    fprintf(stderr, "can't send packet");
-    perror("");
-    return;
-  }
-  char response[1024];
-  if (recv(socket, response, sizeof(response), 0) == -1)
-  {
-    fprintf(stderr, "can't receive packet");
-    perror("");
-    return;
-  }
-  // if (begin_with(response, "@"))
-  // {
-  //   printf("Server Error: %s\n", &response[1]);
-  // }
-  else
-  {
-    printf("%s", response);
-  }
-}
+void client_ls(int socket, char *message);
+void command_cprocess(int socket, char *command, char **path);
+void client_cd(int socket, char *message, char **path);
+void client_download(int sock, char *buffer, char *target_file);
+void clrs();
 
 int main(int argc, const char *argv[])
 {
@@ -99,6 +65,7 @@ int main(int argc, const char *argv[])
     printf("===========================\n");
     printf("Enter your choice: ");
     scanf("%d", &option);
+    clrs();
     switch (option)
     {
     case 1:
@@ -115,8 +82,7 @@ int main(int argc, const char *argv[])
         {
           // memset(choice, '\0', sizeof(choice));
           // memset(username, '\0',MAX);
-          printf("%s\n", username);
-          puts("\nPlease enter your account");
+          puts("Please enter your account");
           // Check username
           printf("Username: ");
           fgets(username, MAX, stdin);
@@ -185,15 +151,16 @@ int main(int argc, const char *argv[])
           {
             continue;
           }
-          if (strcmp(command, "exit\n") == 0)
+          else if (strcmp(command, "exit\n") == 0)
           {
             break;
           }
-          if ((strlen(command) > 0) && (command[strlen(command) - 1] == '\n'))
+          else if ((strlen(command) > 0) && (command[strlen(command) - 1] == '\n'))
           {
             command[strlen(command) - 1] = '\0';
-            send(sfd, command, MAX, 0);
+            // send(sfd, command, MAX, 0);
           }
+
           command_cprocess(sfd, command, &path);
         }
       }
@@ -204,4 +171,178 @@ int main(int argc, const char *argv[])
       break;
     }
   }
+}
+
+void clrs()
+{
+  int c;
+  while ((c = getchar()) != '\n' && c != EOF)
+    ;
+}
+
+int begin_with(const char *str, const char *pre)
+{
+  // strlen() uses size_t because the length of any string
+  // will always be at least 0.
+  size_t lenpre = strlen(pre), lenstr = strlen(str);
+  return lenstr < lenpre ? 0 : memcmp(pre, str, lenpre) == 0;
+}
+
+void command_cprocess(int socket, char *command, char **path)
+{
+  char *full_command = malloc(strlen(command) + 1);
+  strcpy(full_command, command);
+  char *delim = " ";
+  char *first_command = strtok(full_command, delim); // first token
+  char *context = strtok(NULL, delim);               // second token, third token
+
+  if (strcmp(first_command, "ls") == 0)
+  {
+    client_ls(socket, command);
+  }
+  else if (strcmp(first_command, "cd") == 0)
+  {
+    client_cd(socket, command, path);
+  }
+  else if (strcmp(first_command, "download") == 0)
+  {
+    client_download(socket, command, context);
+  }
+  else
+  {
+    printf("%s: command not found\n", command);
+  }
+}
+
+void client_ls(int socket, char *message)
+{
+  if (send(socket, message, MAX, 0) <= 0)
+  {
+    fprintf(stderr, "can't send packet");
+    perror("");
+    return;
+  }
+  char response[1024];
+  if (recv(socket, response, sizeof(response), 0) == -1)
+  {
+    fprintf(stderr, "can't receive packet");
+    perror("");
+    return;
+  }
+  // if (begin_with(response, "@"))
+  // {
+  //   printf("Server Error: %s\n", &response[1]);
+  // }
+  else
+  {
+    printf("%s", response);
+  }
+}
+
+void client_cd(int socket, char *message, char **path)
+{
+  // Send & Evaluate
+  if (send(socket, message, strlen(message) + 1, 0) == -1)
+  {
+    fprintf(stderr, "can't send packet");
+    perror("");
+    return;
+  }
+
+  // Recieve
+  char response[1024];
+  if (recv(socket, response, sizeof(response), 0) == -1)
+  {
+    fprintf(stderr, "can't receive packet");
+    perror("");
+    return;
+  }
+
+  // Print
+  if (begin_with(response, "@"))
+  {
+    printf("%s\n", &response[1]);
+  }
+  else
+  {
+    // free(*path);
+    *path = malloc(strlen(response) + 1);
+    strcpy(*path, response);
+  }
+}
+
+void client_download(int sock, char *buffer, char *target_file)
+{
+  if (access(target_file, F_OK) == 0)
+  { // target_file === path
+    // file exists
+    fprintf(stderr, "File already exists\n");
+    return;
+  }
+  ssize_t chunk_size;
+  long received_size = 0;
+
+  // Send Download Command
+  if (send(sock, buffer, strlen(buffer) + 1, 0) == -1)
+  {
+    fprintf(stderr, "can't send packet");
+    perror("");
+    // fclose(fd);
+    return;
+  }
+
+  // Retrieve File Size
+  char response[1024];
+  if (recv(sock, response, sizeof(response), 0) == -1)
+  {
+    fprintf(stderr, "can't receive packet");
+    perror("");
+    // fclose(fd);
+    return;
+  }
+  if (begin_with(response, "@"))
+  {
+    printf("Server Error: %s\n", response);
+    // fclose(fd);
+    return;
+  }
+  // Initialize File Descriptor
+  FILE *fd = fopen(target_file, "wb");
+  if (fd == NULL)
+  {
+    fprintf(stderr, "can't create file");
+    perror("");
+    return;
+  }
+  long file_size = strtol(response, NULL, 0);
+
+  // Notify server to start transmission
+  strcpy(buffer, "ready");
+  if (send(sock, buffer, strlen(buffer) + 1, 0) == -1)
+  {
+    fprintf(stderr, "can't send packet");
+    perror("");
+    fclose(fd);
+    return;
+  }
+
+  // Start Receiving
+  while (received_size < file_size &&
+         (chunk_size = recv(sock, response, sizeof(response), 0)) > 0)
+  {
+    if (received_size + chunk_size > file_size)
+    {
+      fwrite(response, 1, file_size - received_size, fd);
+      received_size += file_size - received_size;
+    }
+    else
+    {
+      fwrite(response, 1, chunk_size, fd);
+      received_size += chunk_size;
+    }
+  }
+
+  // Clean Up
+  printf("%s Downloaded\n", target_file);
+  fclose(fd);
 }
