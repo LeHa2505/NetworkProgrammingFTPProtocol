@@ -36,7 +36,7 @@ int main(int argc, const char *argv[])
 
   char choice[10], username[MAX] = {0}, password[MAX] = {0}, folder[MAX] = {0},
                    notify[10], command[MAX];
-  char *path = malloc(sizeof(char)*MAX);
+  char *path = malloc(sizeof(char) * MAX);
   int bytes_received, bytes_sent;
 
   // Declare socket
@@ -92,7 +92,7 @@ int main(int argc, const char *argv[])
           printf("Username: ");
           fgets(username, MAX, stdin);
           username[strcspn(username, "\n")] = '\0'; // the last character in this string to \0
-          if (send(sfd, username, MAX, 0) <= 0)
+          if (send(sfd, username, sizeof(username), 0) <= 0)
           {
             printf("\nConnection ended\n");
             return 0;
@@ -113,7 +113,7 @@ int main(int argc, const char *argv[])
           printf("Password: ");
           fgets(password, MAX, stdin);
           password[strcspn(password, "\n")] = '\0'; // the last character in this string to \0
-          if (send(sfd, password, MAX, 0) <= 0)
+          if (send(sfd, password, sizeof(password), 0) <= 0)
           {
             printf("\nConnection ended\n");
             return 0;
@@ -143,12 +143,14 @@ int main(int argc, const char *argv[])
           printf("\nERROR! Can't receive path\n");
           return 0;
         }
-        path[bytes_received] = '\0';
+        // path[bytes_received] = '\0';
+        // printf("path %s", path);
 
         while (TRUE)
         {
           // memset(command, '\0', sizeof(command));
-          printf("~/%s$ ", path);
+          printf("~/");
+          printf("%s$ ", path);
           // scanf("%s", command);
           fgets(command, MAX, stdin);
           // printf("%s\n", command);
@@ -158,6 +160,7 @@ int main(int argc, const char *argv[])
           }
           else if (strcmp(command, "exit\n") == 0)
           {
+            close(sfd);
             break;
           }
           else if ((strlen(command) > 0) && (command[strlen(command) - 1] == '\n'))
@@ -169,98 +172,98 @@ int main(int argc, const char *argv[])
           command_cprocess(sfd, command, &path);
         }
       }
-      
+
       break;
     case 2:
       // Create account
-      // {
-      //   strcpy(choice, "2");
-      //   if (send(sfd, choice, 10, 0) == -1)
-      //   {
-      //     perror("\nERROR! Failed to send The client Choice ... \n");
-      //     exit(1);
-      //   }
-      //   printf("Enter new username: ");
-      //   fgets(username, MAX, stdin);
-      //   username[strcspn(username, "\n")] = '\0';
-      //   if (send(sfd, username, MAX, 0) <= 0)
-      //   {
-      //     printf("\nConnection ended\n");
-      //     return 0;
-      //   }
-      //   while (TRUE)
-      //   {
-      //     if ((bytes_received = recv(sfd, notify, 10, 0)) <= 0)
-      //     {
-      //       printf("Can't receive notify\n");
-      //       return 0;
-      //     }
-      //     notify[bytes_received] = '\0';
-      //     if (strcmp(notify, "0") == 0)
-      //     {
-      //       printf("Client existed.Please try again\n");
-      //       printf("Enter new username: ");
-      //       fgets(username, MAX, stdin);
-      //       username[strcspn(username, "\n")] = '\0';
-      //       send(sfd, username, MAX, 0);
-      //     }
-      //     else
-      //       break;
-      //   }
-      //   printf("Enter new password: ");
-      //   fgets(password, MAX, stdin);
-      //   password[strcspn(password, "\n")] = '\0';
-      //   while (TRUE)
-      //   {
-      //     if (strlen(password) <= 0)
-      //     {
-      //       printf("Your password is not valid! Please try again ...\n");
-      //       printf("Enter new password: ");
-      //       fgets(password, MAX, stdin);
-      //       password[strcspn(password, "\n")] = '\0';
-      //     }
-      //     else
-      //       break;
-      //   }
-      //   send(sfd, password, MAX, 0);
-      //   // enter folder
-      //   int c = 0;
-      //   do
-      //   {
-      //     printf("Enter new folder name: ");
-      //     fgets(folder, MAX, stdin);
-      //     folder[strcspn(folder, "\n")] = '\0';
-      //     errno = 0;
-      //     int ret = mkdir(folder, S_IRWXU);
-      //     if (ret == -1)
-      //     {
-      //       switch (errno)
-      //       {
-      //       case EACCES:
-      //         printf("The root directory does not allow write. ");
-      //         break;
-      //       case EEXIST:
-      //         printf("Folder %s already exists. \n%s used for client.", folder, folder);
-      //         c = 1;
-      //         break;
-      //       case ENAMETOOLONG:
-      //         printf("Pathname is too long");
-      //         break;
-      //       default:
-      //         printf("mkdir");
-      //         break;
-      //       }
-      //     }
-      //     else
-      //     {
-      //       printf("Created: %s\n", folder);
-      //       printf("Folder %s is created", folder);
-      //       c = 1;
-      //     }
-      //   } while (c == 0);
-      //   send(sfd, folder, MAX, 0);
-      // }
-      
+      {
+        strcpy(choice, "2");
+        if (send(sfd, choice, 10, 0) == -1)
+        {
+          perror("\nERROR! Failed to send The client Choice ... \n");
+          exit(1);
+        }
+        printf("Enter new username: ");
+        fgets(username, MAX, stdin);
+        username[strcspn(username, "\n")] = '\0';
+        if (send(sfd, username, MAX, 0) <= 0)
+        {
+          printf("\nConnection ended\n");
+          return 0;
+        }
+        while (TRUE)
+        {
+          if ((bytes_received = recv(sfd, notify, 10, 0)) <= 0)
+          {
+            printf("Can't receive notify\n");
+            return 0;
+          }
+          notify[bytes_received] = '\0';
+          if (strcmp(notify, "0") == 0)
+          {
+            printf("Client existed.Please try again\n");
+            printf("Enter new username: ");
+            fgets(username, MAX, stdin);
+            username[strcspn(username, "\n")] = '\0';
+            send(sfd, username, MAX, 0);
+          }
+          else
+            break;
+        }
+        printf("Enter new password: ");
+        fgets(password, MAX, stdin);
+        password[strcspn(password, "\n")] = '\0';
+        while (TRUE)
+        {
+          if (strlen(password) <= 0)
+          {
+            printf("Your password is not valid! Please try again ...\n");
+            printf("Enter new password: ");
+            fgets(password, MAX, stdin);
+            password[strcspn(password, "\n")] = '\0';
+          }
+          else
+            break;
+        }
+        send(sfd, password, MAX, 0);
+        // enter folder
+        int c = 0;
+        do
+        {
+          printf("Enter new folder name: ");
+          fgets(folder, MAX, stdin);
+          folder[strcspn(folder, "\n")] = '\0';
+          errno = 0;
+          int ret = mkdir(folder, S_IRWXU);
+          if (ret == -1)
+          {
+            switch (errno)
+            {
+            case EACCES:
+              printf("The root directory does not allow write. ");
+              break;
+            case EEXIST:
+              printf("Folder %s already exists. \n%s used for client.", folder, folder);
+              c = 1;
+              break;
+            case ENAMETOOLONG:
+              printf("Pathname is too long");
+              break;
+            default:
+              printf("mkdir");
+              break;
+            }
+          }
+          else
+          {
+            printf("Created: %s\n", folder);
+            printf("Folder %s is created", folder);
+            c = 1;
+          }
+        } while (c == 0);
+        send(sfd, folder, MAX, 0);
+      }
+
       break;
     case 3:
     {

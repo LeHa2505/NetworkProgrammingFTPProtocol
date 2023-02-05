@@ -134,7 +134,6 @@ int main(int argc, const char *argv[])
                         break;
                       }
                       username[bytes_received] = '\0';
-                      printf("=====%s\n", username);
                       // Check username
                       if (account = findNode(account_list, username))
                       {
@@ -166,7 +165,6 @@ int main(int argc, const char *argv[])
                           break;
                         }
                         password[bytes_received] = '\0';
-                        printf("====%s\n", password);
                         if (strcmp(account->pass, password) == 0)
                         {
                           notify = "1";
@@ -189,12 +187,11 @@ int main(int argc, const char *argv[])
                     printf("\n%s account is accessing in ~/%s\n", username, current_path);
 
                     // Sent current_path to client
-                    if (send(cfd, current_path, MAX, 0) <= 0)
+                    if (send(cfd, current_path, sizeof(current_path)+2, 0) <= 0)
                     {
                       printf("\nERROR! Can't send current path ...\n");
                       exit(1);
                     }
-                    printf("=====1======\n");
                     while (TRUE)
                     {
                       if ((bytes_received = recv(cfd, command, MAX, 0)) <= 0)
@@ -210,49 +207,49 @@ int main(int argc, const char *argv[])
 
                   break;
                   case 2:
-                    // {
-                    //   notify = "0";
-                    //   printf("Creating an account\n");
-                    //   if ((bytes_received = recv(cfd, username, MAX, 0)) <= 0)
-                    //   {
-                    //     perror("ERROR! Can't receive username\n");
-                    //     exit(1);
-                    //   }
-                    //   username[bytes_received] = '\0';
-                    //   printf("1. %s\n", username);
-                    //   int check = 0;
-                    //   while (check == 0)
-                    //   {
-                    //     if (findNode(account_list, username) != NULL)
-                    //     {
-                    //       notify = "0"; // Client existed
-                    //     }
-                    //     else
-                    //     {
-                    //       notify = "1";
-                    //       check = 1;
-                    //     }
-                    //     send(cfd, notify, 10, 0);
-                    //     recv(cfd, username, MAX, 0);
-                    //   }
-                    //   if ((bytes_received = recv(cfd, password, MAX, 0)) <= 0)
-                    //   {
-                    //     perror("ERROR! Can't receive password\n");
-                    //     exit(1);
-                    //   }
-                    //   printf("2. %s\n", password);
+                    {
+                      notify = "0";
+                      printf("Creating an account\n");
+                      if ((bytes_received = recv(cfd, username, MAX, 0)) <= 0)
+                      {
+                        perror("ERROR! Can't receive username\n");
+                        exit(1);
+                      }
+                      username[bytes_received] = '\0';
+                      printf("1. %s\n", username);
+                      int check = 0;
+                      while (check == 0)
+                      {
+                        if (findNode(account_list, username) != NULL)
+                        {
+                          notify = "0"; // Client existed
+                        }
+                        else
+                        {
+                          notify = "1";
+                          check = 1;
+                        }
+                        send(cfd, notify, 10, 0);
+                        recv(cfd, username, MAX, 0);
+                      }
+                      if ((bytes_received = recv(cfd, password, MAX, 0)) <= 0)
+                      {
+                        perror("ERROR! Can't receive password\n");
+                        exit(1);
+                      }
+                      printf("2. %s\n", password);
 
-                    //   if ((bytes_received = recv(cfd, folder, MAX, 0)) <= 0)
-                    //   {
-                    //     perror("ERROR! Can't receive folder\n");
-                    //     exit(1);
-                    //   }
-                    //   printf("2. %s\n", folder);
-                    //   folder[bytes_received] = '\0';
-                    //   account_list = AddTail(account_list, username, password, folder);
-                    //   saveData(account_list, filename);
-                    //   printf("Create new client %s successed!\n", username);
-                    // }
+                      if ((bytes_received = recv(cfd, folder, MAX, 0)) <= 0)
+                      {
+                        perror("ERROR! Can't receive folder\n");
+                        exit(1);
+                      }
+                      printf("2. %s\n", folder);
+                      folder[bytes_received] = '\0';
+                      account_list = AddTail(account_list, username, password, folder);
+                      saveData(account_list, filename);
+                      printf("Create new client %s successed!\n", username);
+                    }
 
                     break;
                   case 3:
