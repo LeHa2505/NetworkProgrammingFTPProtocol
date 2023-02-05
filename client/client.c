@@ -36,7 +36,7 @@ int main(int argc, const char *argv[])
 
   char choice[10], username[MAX] = {0}, password[MAX] = {0}, folder[MAX] = {0},
                    notify[10], command[MAX];
-  char *path;
+  char *path = malloc(sizeof(char)*MAX);
   int bytes_received, bytes_sent;
 
   // Declare socket
