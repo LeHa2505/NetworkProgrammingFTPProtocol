@@ -61,7 +61,8 @@ int main(int argc, const char *argv[])
   }
 
   int option;
-  while (TRUE)
+  int temp = 0;
+  while (temp == 0)
   {
     printf("\n============MENU===========\n");
     printf("|1. Login                  |\n");
@@ -161,6 +162,7 @@ int main(int argc, const char *argv[])
           else if (strcmp(command, "exit\n") == 0)
           {
             close(sfd);
+            temp = 1;
             break;
           }
           else if ((strlen(command) > 0) && (command[strlen(command) - 1] == '\n'))

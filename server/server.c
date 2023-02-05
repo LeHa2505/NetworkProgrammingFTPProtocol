@@ -59,7 +59,7 @@ int main(int argc, const char *argv[])
   int bytes_received, bytes_sent;
   char username[MAX] = {0}, password[MAX] = {0}, folder[MAX] = {0};
   char command[MAX];
-  char *notify;
+  char *notify = malloc(sizeof(char) * 2);
 
   node_a *account;
   node_a *account_list = getListNode(filename);
@@ -137,7 +137,7 @@ int main(int argc, const char *argv[])
                       // Check username
                       if (account = findNode(account_list, username))
                       {
-                        notify = "1";
+                        strcpy(notify, "1");
                         if ((bytes_sent = send(cfd, notify, sizeof(notify), 0)) <= 0)
                         {
                           printf("\nConnection ended\n");
@@ -146,7 +146,7 @@ int main(int argc, const char *argv[])
                       }
                       else
                       {
-                        notify = "0";
+                        strcpy(notify, "0");
                         if ((bytes_sent = send(cfd, notify, sizeof(notify), 0)) <= 0)
                         {
                           printf("\nConnection ended\n");
@@ -167,12 +167,12 @@ int main(int argc, const char *argv[])
                         password[bytes_received] = '\0';
                         if (strcmp(account->pass, password) == 0)
                         {
-                          notify = "1";
+                          strcpy(notify, "1");
                           done = 1;
                           check = 1;
                         }
                         else
-                          notify = "0";
+                          strcpy(notify, "0");
                         if ((bytes_sent = send(cfd, notify, sizeof(notify), 0)) <= 0)
                         {
                           printf("%s is try to logged in\n", username);
@@ -208,7 +208,7 @@ int main(int argc, const char *argv[])
                   break;
                   case 2:
                     {
-                      notify = "0";
+                      strcpy(notify, "0");
                       printf("Creating an account\n");
                       if ((bytes_received = recv(cfd, username, MAX, 0)) <= 0)
                       {
@@ -222,11 +222,11 @@ int main(int argc, const char *argv[])
                       {
                         if (findNode(account_list, username) != NULL)
                         {
-                          notify = "0"; // Client existed
+                          strcpy(notify, "0"); // Client existed
                         }
                         else
                         {
-                          notify = "1";
+                          strcpy(notify, "1");
                           check = 1;
                         }
                         send(cfd, notify, 10, 0);
