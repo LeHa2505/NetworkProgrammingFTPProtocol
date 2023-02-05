@@ -144,8 +144,6 @@ int main(int argc, const char *argv[])
           printf("\nERROR! Can't receive path\n");
           return 0;
         }
-        // path[bytes_received] = '\0';
-        // printf("path %s", path);
 
         while (TRUE)
         {
@@ -207,14 +205,15 @@ int main(int argc, const char *argv[])
             printf("Enter new username: ");
             fgets(username, MAX, stdin);
             username[strcspn(username, "\n")] = '\0';
-            send(sfd, username, MAX, 0);
+            send(sfd, username, sizeof(username), 0);
           }
-          else
+          else if (strcmp(notify, "1") == 0)
+          {
             break;
+          }
         }
         printf("Enter new password: ");
         fgets(password, MAX, stdin);
-        password[strcspn(password, "\n")] = '\0';
         while (TRUE)
         {
           if (strlen(password) <= 0)
@@ -227,43 +226,58 @@ int main(int argc, const char *argv[])
           else
             break;
         }
-        send(sfd, password, MAX, 0);
+        password[strcspn(password, "\n")] = '\0';
+        if (send(sfd, password, sizeof(password), 0) <= 0)
+        {
+          printf("Can't send password\n");
+          return 0;
+        }
+
         // enter folder
         int c = 0;
+        char *error = malloc(sizeof(char) * MAX);
         do
         {
           printf("Enter new folder name: ");
           fgets(folder, MAX, stdin);
           folder[strcspn(folder, "\n")] = '\0';
-          errno = 0;
-          int ret = mkdir(folder, S_IRWXU);
-          if (ret == -1)
+          while (TRUE)
           {
-            switch (errno)
+            if (strlen(folder) <= 0)
             {
-            case EACCES:
-              printf("The root directory does not allow write. ");
-              break;
-            case EEXIST:
-              printf("Folder %s already exists. \n%s used for client.", folder, folder);
-              c = 1;
-              break;
-            case ENAMETOOLONG:
-              printf("Pathname is too long");
-              break;
-            default:
-              printf("mkdir");
-              break;
+              printf("Your folder is not valid! Please try again ...\n");
+              printf("Enter new folder: ");
+              fgets(folder, MAX, stdin);
+              folder[strcspn(folder, "\n")] = '\0';
             }
+            else
+              break;
           }
-          else
+          send(sfd, folder, MAX, 0);
+          recv(sfd, error, MAX, 0);
+          printf("%s\n", error);
+          if (strcmp(error, "EACCES") == 0)
           {
-            printf("Created: %s\n", folder);
-            printf("Folder %s is created", folder);
+            printf("The root directory does not allow write. \n");
+          }
+          else if (strcmp(error, "EEXIST") == 0)
+          {
+            printf("Folder %s already exists. \n%s used for client.\n", folder, folder);
             c = 1;
           }
+          else if (strcmp(error, "ENAMETOOLONG") == 0)
+          {
+            printf("Pathname is too long\n");
+          }
+          else if (strcmp(error, "SUCCESS") == 0)
+          {
+            printf("Folder %s is created\n", folder);
+            c = 1;
+          }
+          else
+            printf("ERROR!\n");
+
         } while (c == 0);
-        send(sfd, folder, MAX, 0);
       }
 
       break;
@@ -366,7 +380,8 @@ void client_ls(int socket, char *message)
   }
   // if (begin_with(response, "@"))
   // {
-  //   printf("Server Error: %s\n", &response[1]);
+  //   printf("Server Error: %s\n", &response[1]);test3 aaa 2
+
   // }
   else
   {

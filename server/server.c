@@ -187,7 +187,7 @@ int main(int argc, const char *argv[])
                     printf("\n%s account is accessing in ~/%s\n", username, current_path);
 
                     // Sent current_path to client
-                    if (send(cfd, current_path, sizeof(current_path)+2, 0) <= 0)
+                    if (send(cfd, current_path, sizeof(current_path) + 2, 0) <= 0)
                     {
                       printf("\nERROR! Can't send current path ...\n");
                       exit(1);
@@ -207,51 +207,89 @@ int main(int argc, const char *argv[])
 
                   break;
                   case 2:
+                  {
+                    strcpy(notify, "0");
+                    printf("Creating an account\n");
+                    if ((bytes_received = recv(cfd, username, MAX, 0)) <= 0)
                     {
-                      strcpy(notify, "0");
-                      printf("Creating an account\n");
-                      if ((bytes_received = recv(cfd, username, MAX, 0)) <= 0)
+                      perror("ERROR! Can't receive username\n");
+                      exit(1);
+                    }
+                    username[bytes_received] = '\0';
+                    int check = 0;
+                    while (check == 0)
+                    {
+                      if (findNode(account_list, username) != NULL)
                       {
-                        perror("ERROR! Can't receive username\n");
-                        exit(1);
-                      }
-                      username[bytes_received] = '\0';
-                      printf("1. %s\n", username);
-                      int check = 0;
-                      while (check == 0)
-                      {
-                        if (findNode(account_list, username) != NULL)
-                        {
-                          strcpy(notify, "0"); // Client existed
-                        }
-                        else
-                        {
-                          strcpy(notify, "1");
-                          check = 1;
-                        }
-                        send(cfd, notify, 10, 0);
+                        strcpy(notify, "0"); // Client existed
+                        send(cfd, notify, sizeof(notify), 0);
                         recv(cfd, username, MAX, 0);
+                        printf("name again: %s\n", username);
+                        // continue;
                       }
-                      if ((bytes_received = recv(cfd, password, MAX, 0)) <= 0)
+                      else
                       {
-                        perror("ERROR! Can't receive password\n");
-                        exit(1);
+                        strcpy(notify, "1");
+                        send(cfd, notify, sizeof(notify), 0);
+                        check = 1;
+                        break;
                       }
-                      printf("2. %s\n", password);
+                    }
+                    recv(cfd, password, MAX, 0);
 
+                    // if ((bytes_received = recv(cfd, password, MAX, 0)) <= 0)
+                    // {
+                    //   perror("ERROR! Can't receive password\n");
+                    //   exit(1);
+                    // }
+                    int c = 0;
+                    char *error = malloc(sizeof(char) * MAX);
+                    while (c == 0)
+                    {
                       if ((bytes_received = recv(cfd, folder, MAX, 0)) <= 0)
                       {
                         perror("ERROR! Can't receive folder\n");
                         exit(1);
                       }
-                      printf("2. %s\n", folder);
                       folder[bytes_received] = '\0';
-                      account_list = AddTail(account_list, username, password, folder);
-                      saveData(account_list, filename);
-                      printf("Create new client %s successed!\n", username);
+                      errno = 0;
+                      int ret = mkdir(folder, S_IRWXU);
+                      if (ret == -1)
+                      {
+                        switch (errno)
+                        {
+                        case EACCES:
+                          strcpy(error, "EACCES");
+                          break;
+                        case EEXIST:
+                          strcpy(error, "EEXIST");
+                          c = 1;
+                          break;
+                        case ENAMETOOLONG:
+                          strcpy(error, "ENAMETOOLONG");
+                          break;
+                        default:
+                          strcpy(error, "mkdir");
+                          break;
+                        }
+                        send(cfd, error, sizeof(error), 0);
+                      }
+                      else
+                      {
+                        strcpy(error, "SUCCESS");
+                        send(cfd, error, sizeof(error), 0);
+                        printf("Created: %s\n", folder);
+                        printf("Folder %s is created\n", folder);
+                        c = 1;
+                      }
                     }
 
-                    break;
+                    account_list = AddTail(account_list, username, password, folder);
+                    saveData(account_list, filename);
+                    printf("Create new client %s successed!\n", username);
+                  }
+
+                  break;
                   case 3:
                     close(cfd);
                     break;
@@ -281,7 +319,51 @@ int main(int argc, const char *argv[])
         }
       }
       break;
-
+    case 2: 
+    //Update
+    {
+        printf("Update client\n");
+        while (getchar() != '\n');
+        printf("Username: ");
+        fgets(username, MAX, stdin);
+        username[strcspn(username, "\n")] = '\0';
+        node_a *found = findNode(account_list, username);
+        if (found == NULL)
+        {
+          printf("Username \"%s\" not exist!\n", username);
+        }
+        else
+        {
+          account_list = updateNode(account_list, found);
+          saveData(account_list, filename);
+        }
+      }
+    break;
+    case 3: 
+    // Delete
+    {
+      while (getchar() != '\n')
+        ;
+      printf("Client Username: ");
+      fgets(username, MAX, stdin);
+      username[strcspn(username, "\n")] = '\0';
+      if (findNode(account_list, username) == NULL)
+      {
+        printf("Username \"%s\" not exist!\n", username);
+      }
+      else if (account_list == findNode(account_list, username))
+      {
+        account_list = deleteHead(account_list);
+        printf("Client \"%s\" deleted", username);
+      }
+      else
+      {
+        account_list = deleteAt(account_list, username);
+        printf("Client \"%s\" deleted", username);
+      }
+    }
+    break;
+    case 4: break;
     default:
       break;
     }
