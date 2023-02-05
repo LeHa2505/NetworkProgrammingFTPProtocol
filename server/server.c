@@ -30,6 +30,10 @@ void sighandler(int signum);
 void server_ls(char *response, char **current_path);
 void server_cd(int socket, char *open_dir, char *response, char **current_path);
 void server_download(int socket, char *target_file, char **current_path);
+void server_upload(int socket, char *target_file, char **current_path);
+void server_rm(int recfd, char *target_file, char *response, char **current_path);
+void server_move(int recfd, char *target_file, char **current_path);
+void server_mkdir(int recfd, char *new_dir, char *response, char **current_path);
 void command_sprocess(int socket, char *full_command, char **current_path);
 
 int main(int argc, const char *argv[])
@@ -53,7 +57,7 @@ int main(int argc, const char *argv[])
 
   char client_choice[10];
   int bytes_received, bytes_sent;
-  char username[MAX] = {0}, password[MAX] = {0};
+  char username[MAX] = {0}, password[MAX] = {0}, folder[MAX] = {0};
   char command[MAX];
   char *notify;
 
@@ -130,6 +134,7 @@ int main(int argc, const char *argv[])
                         break;
                       }
                       username[bytes_received] = '\0';
+                      printf("=====%s\n", username);
                       // Check username
                       if (account = findNode(account_list, username))
                       {
@@ -161,6 +166,7 @@ int main(int argc, const char *argv[])
                           break;
                         }
                         password[bytes_received] = '\0';
+                        printf("====%s\n", password);
                         if (strcmp(account->pass, password) == 0)
                         {
                           notify = "1";
@@ -188,7 +194,7 @@ int main(int argc, const char *argv[])
                       printf("\nERROR! Can't send current path ...\n");
                       exit(1);
                     }
-
+                    printf("=====1======\n");
                     while (TRUE)
                     {
                       if ((bytes_received = recv(cfd, command, MAX, 0)) <= 0)
@@ -201,8 +207,57 @@ int main(int argc, const char *argv[])
                       command_sprocess(cfd, command, &current_path);
                     }
                   }
-                  break;
 
+                  break;
+                  case 2:
+                    // {
+                    //   notify = "0";
+                    //   printf("Creating an account\n");
+                    //   if ((bytes_received = recv(cfd, username, MAX, 0)) <= 0)
+                    //   {
+                    //     perror("ERROR! Can't receive username\n");
+                    //     exit(1);
+                    //   }
+                    //   username[bytes_received] = '\0';
+                    //   printf("1. %s\n", username);
+                    //   int check = 0;
+                    //   while (check == 0)
+                    //   {
+                    //     if (findNode(account_list, username) != NULL)
+                    //     {
+                    //       notify = "0"; // Client existed
+                    //     }
+                    //     else
+                    //     {
+                    //       notify = "1";
+                    //       check = 1;
+                    //     }
+                    //     send(cfd, notify, 10, 0);
+                    //     recv(cfd, username, MAX, 0);
+                    //   }
+                    //   if ((bytes_received = recv(cfd, password, MAX, 0)) <= 0)
+                    //   {
+                    //     perror("ERROR! Can't receive password\n");
+                    //     exit(1);
+                    //   }
+                    //   printf("2. %s\n", password);
+
+                    //   if ((bytes_received = recv(cfd, folder, MAX, 0)) <= 0)
+                    //   {
+                    //     perror("ERROR! Can't receive folder\n");
+                    //     exit(1);
+                    //   }
+                    //   printf("2. %s\n", folder);
+                    //   folder[bytes_received] = '\0';
+                    //   account_list = AddTail(account_list, username, password, folder);
+                    //   saveData(account_list, filename);
+                    //   printf("Create new client %s successed!\n", username);
+                    // }
+
+                    break;
+                  case 3:
+                    close(cfd);
+                    break;
                   default:
                     break;
                   }
@@ -282,8 +337,33 @@ void command_sprocess(int socket, char *full_command, char **current_path)
   else if (strcmp(command, "download") == 0)
   {
     server_download(socket, context, current_path);
-    // send(socket, response, MAX, 0);
   }
+  else if (strcmp(command, "upload") == 0)
+  {
+    server_upload(socket, context, current_path);
+  }
+  else if (strcmp(command, "rm") == 0)
+  {
+    server_rm(socket, context, response, current_path);
+    send(socket, response, MAX, 0);
+  }
+  else if (strcmp(command, "move") == 0)
+  {
+    server_move(socket, context, current_path);
+  }
+  else if (strcmp(command, "mkdir") == 0)
+  {
+    server_mkdir(socket, context, response, current_path);
+    send(socket, response, MAX, 0);
+  }
+  else
+  {
+    strcpy(response, "No such command: ");
+    strcat(response, command);
+    // gửi thông điệp (phản hồi) lại client
+    send(socket, response, MAX, 0);
+  }
+
   free(response);
 }
 
@@ -382,7 +462,6 @@ void server_cd(int socket, char *open_dir, char *response, char **current_path)
       *current_path = malloc(strlen(new_path));
       strcpy(*current_path, new_path);
       strcpy(response, *current_path);
-      printf("========%s========\n", *current_path);
       free(new_path);
       exist = true;
     }
@@ -415,9 +494,9 @@ int dem(char *s, char t)
   return dem;
 }
 
-int respond(int recfd, char response[])
+int respond(int socket, char response[])
 {
-  if ((send(recfd, response, strlen(response) + 1, 0)) == -1)
+  if ((send(socket, response, strlen(response) + 1, 0)) == -1)
   {
     fprintf(stderr, "Can't send packet\n");
     return errno;
@@ -435,7 +514,7 @@ int is_regular_file(const char *path)
 void server_download(int socket, char *target_file, char **current_path)
 {
 
- // Build Path 
+  // Build Path
   char *full_path = malloc(strlen(*current_path) + strlen(target_file) + 2);
   strcpy(full_path, *current_path);
   strcat(full_path, "/");
@@ -500,4 +579,234 @@ void server_download(int socket, char *target_file, char **current_path)
   }
   printf("Transmited: %s\n", target_file);
   fclose(fd);
+}
+
+void server_upload(int socket, char *target_file, char **current_path)
+{
+  // Build Path
+  // char file_name[MAX];
+  char *file_name = basename(target_file);
+  char *full_path = malloc(strlen(*current_path) + strlen(file_name) + 2);
+  strcpy(full_path, *current_path);
+  strcat(full_path, "/");
+  strcat(full_path, file_name);
+  if (access(full_path, F_OK) == 0)
+  {
+    // file exists
+    fprintf(stderr, "File already exists\n");
+    respond(socket, "@File already exists");
+    free(full_path);
+    return;
+  }
+
+  // Initialize File Descriptor
+  FILE *fd;
+  if ((fd = fopen(full_path, "wb")) == NULL)
+  {
+    respond(socket, "@file open error");
+    fprintf(stderr, "Can't open %s", *current_path);
+    perror("");
+    return;
+  }
+
+  // Retrieve File Size
+  char buffer[1024];
+  strcpy(buffer, "?size");
+  ssize_t byte_sent = send(socket, buffer, strlen(buffer) + 1, 0);
+  if (byte_sent == -1)
+  {
+    fprintf(stderr, "Can't send packet");
+    perror("");
+    fclose(fd);
+    return;
+  }
+  ssize_t byte_received = recv(socket, buffer, sizeof(buffer), 0);
+  if (byte_received == -1)
+  {
+    fprintf(stderr, "Can't receive packet");
+    perror("");
+    fclose(fd);
+    return;
+  }
+  long file_size = strtol(buffer, NULL, 0); // strol => coveert string to long int
+
+  // Notify client to start transmission
+  strcpy(buffer, "ready");
+  byte_sent = send(socket, buffer, strlen(buffer) + 1, 0);
+  if (byte_sent == -1)
+  {
+    fprintf(stderr, "Can't send packet");
+    perror("");
+    fclose(fd);
+    return;
+  }
+
+  // Start Receiving
+  ssize_t chunk_size;
+  long received_size = 0;
+  while (received_size < file_size &&
+         (chunk_size = recv(socket, buffer, sizeof(buffer), 0)) > 0)
+  {
+    if (chunk_size == -1)
+    {
+      fprintf(stderr, "Can't receive packet");
+      perror("");
+      fclose(fd);
+      return;
+    }
+    if (received_size + chunk_size > file_size)
+    {
+      fwrite(buffer, 1, file_size - received_size, fd);
+      received_size += file_size - received_size;
+    }
+    else
+    {
+      fwrite(buffer, 1, chunk_size, fd);
+      received_size += chunk_size;
+    }
+  }
+  free(full_path);
+  fprintf(stderr, "Saved: %s\n", file_name);
+  fclose(fd);
+}
+
+void server_rm(int recfd, char *target_file, char *response, char **current_path)
+{
+  char *full_path = malloc(strlen(*current_path) + strlen(target_file) + 2);
+  strcpy(full_path, *current_path);
+  strcat(full_path, "/");
+  strcat(full_path, target_file);
+
+  int ret = remove(full_path);
+  if (ret != 0)
+  {
+    strcpy(response, "@Error: unable to delete the file/folder");
+    free(full_path);
+    perror("Error");
+    return;
+  }
+  else
+  {
+    printf("File deleted successfully\n");
+    strcpy(response, "@File deleted successfully");
+  }
+  free(full_path);
+}
+
+void server_move(int recfd, char *target_file, char **current_path)
+{
+  char *full_path = malloc(strlen(*current_path) + strlen(target_file) + 2);
+  strcpy(full_path, *current_path);
+  strcat(full_path, "/");
+  strcat(full_path, target_file);
+
+  char buffer[MAX];
+  strcpy(buffer, "move to");
+  respond(recfd, buffer);
+
+  memset(buffer, '\0', MAX);
+  int byte_receive;
+  if ((byte_receive = (recv(recfd, buffer, MAX, 0))) <= 0)
+  {
+    fprintf(stderr, "Can't receive packet\n");
+    free(full_path);
+    close(recfd);
+    return;
+  }
+  buffer[byte_receive] = '\0';
+  char *new_path = malloc(strlen(buffer) + strlen(target_file) + 2);
+  strcpy(new_path, buffer);
+  strcat(new_path, "/");
+  strcat(new_path, target_file);
+
+  FILE *fp1, *fp2;
+  fp1 = fopen(full_path, "r");
+  /* open the destination file in write mode */
+  fp2 = fopen(new_path, "w");
+
+  /* error handling */
+  if (!fp1)
+  {
+    printf("Unable to open source file to read!!\n");
+    respond(recfd, "@server error\n");
+    fclose(fp2);
+    return;
+  }
+
+  if (!fp2)
+  {
+    printf("Unable to open target file to write\n");
+    respond(recfd, "@server error\n");
+    return;
+  }
+  int ch;
+  /* copying contents of source file to target file */
+  while ((ch = fgetc(fp1)) != EOF)
+  {
+    fputc(ch, fp2);
+  }
+
+  /* closing the opened files */
+  fclose(fp1);
+  fclose(fp2);
+
+  /* removing the source file */
+  remove(full_path);
+  free(full_path);
+  free(new_path);
+  printf("Success to move file\n");
+  respond(recfd, "Move success!");
+  return;
+}
+
+void server_mkdir(int recfd, char *new_dir, char *response, char **current_path)
+{
+  // Handle empty arg and . and ..
+  // xử lý đối số trống . và ..
+  if (new_dir == NULL)
+  {
+    strcpy(response, "@no directory name given");
+    return;
+  }
+  else if (strcmp(new_dir, ".") == 0 || strcmp(new_dir, "..") == 0)
+  {
+    strcpy(response, "@Wrong name format");
+    return;
+  }
+
+  char *new_path = malloc(strlen(*current_path) + strlen(new_dir) + 2);
+  strcpy(new_path, *current_path);
+  strcat(new_path, "/");
+  strcat(new_path, new_dir);
+
+  errno = 0;
+  int ret = mkdir(new_path, S_IRWXU);
+  if (ret == -1)
+  {
+    switch (errno)
+    {
+    case EACCES:
+      strcpy(response, "@The parent directory does not allow write");
+      free(new_path);
+      return;
+    case EEXIST:
+      strcpy(response, "@pathname already exists");
+      free(new_path);
+      return;
+    case ENAMETOOLONG:
+      strcpy(response, "@pathname is too long");
+      free(new_path);
+      return;
+    default:
+      strcpy(response, "@mkdir");
+      free(new_path);
+      return;
+    }
+  }
+  else
+  {
+    fprintf(stderr, "Created: %s\n", new_dir);
+    strcpy(response, "@Folder is created");
+  }
+  free(new_path);
 }
